@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Cửa Hàng Đấu Trường - Grandmaster Arena</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="nav"></div>
+
+  <main class="page-container">
+    <div class="storefront-header">
+      <div>
+        <h1 class="page-title">CỬA HÀNG ĐẤU TRƯỜNG</h1>
+        <p class="page-subtitle">Sưu tập các skin cờ nghệ thuật, giao diện bàn cờ và khung vương giả</p>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button id="btnTxHistory" class="btn ghost small" type="button">Lịch Sử Giao Dịch</button>
+      </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="store-tabs" style="margin-bottom: 24px;">
+      <button class="store-tab-btn active" data-cat="ALL" type="button">TẤT CẢ VẬT PHẨM</button>
+      <button class="store-tab-btn" data-cat="BOARD_THEME" type="button">GIAO DIỆN BÀN CỜ</button>
+      <button class="store-tab-btn" data-cat="PIECE_SKIN" type="button">QUÂN CỜ NGHỆ THUẬT</button>
+      <button class="store-tab-btn" data-cat="AVATAR_FRAME" type="button">KHUNG VƯƠNG GIẢ</button>
+    </div>
+
+    <!-- Shop Grid -->
+    <div id="shopGridContainer">
+      <div id="shopGrid" class="shop-grid"></div>
+    </div>
+  </main>
+
+  <!-- Transaction History Modal -->
+  <div id="txModal" class="confirm-modal-bg">
+    <div class="confirm-card" style="max-width: 600px; width: 90%; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="font-size: 1.2rem; color: #fff; font-weight: 700;">LỊCH SỬ GIAO DỊCH VÍ XU</h3>
+        <button id="btnCloseTxModal" class="btn ghost small" type="button">ĐÓNG</button>
+      </div>
+      <div style="max-height: 380px; overflow-y: auto;">
+        <table class="table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Thời Gian</th>
+              <th>Biến Động</th>
+              <th>Số Dư</th>
+              <th>Nội Dung</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/shop.js"></script>
+</body>
+</html>

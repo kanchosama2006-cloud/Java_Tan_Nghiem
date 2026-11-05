@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Lịch Sử Thi Đấu - Grandmaster Arena</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="nav"></header>
+
+  <main class="container">
+    <section class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2 style="margin-bottom: 0;">LỊCH SỬ CÁC VÁN ĐẤU</h2>
+      </div>
+
+      <div id="alert" class="alert"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80px;">MÃ VÁN</th>
+              <th>THỜI GIAN KẾT THÚC</th>
+              <th id="thUser" style="display:none">TÀI KHOẢN</th>
+              <th>KỲ THỦ X</th>
+              <th>KỲ THỦ O</th>
+              <th>KẾT QUẢ</th>
+              <th style="text-align: right;">THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Xem Lại Ván Đấu & Bình Luận / Đánh Giá -->
+  <div id="modalBg" class="modal-bg">
+    <div class="modal" style="max-width: 680px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 id="mTitle" style="color: #fff; font-size: 1.25rem; font-weight: 700; margin-bottom: 0;">XEM LẠI VÁN ĐẤU</h3>
+        <button id="mCloseTop" class="btn small ghost" type="button">ĐÓNG</button>
+      </div>
+
+      <!-- Khung bàn cờ mini replay -->
+      <div id="mBoard" class="board mini" style="margin: 0 auto 16px auto;"></div>
+      <div class="center muted" id="mInfo" style="margin-bottom: 16px; font-weight: 600;"></div>
+
+      <div class="controls" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px;">
+        <button id="mFirst" class="btn small light" type="button">Đầu Tiên</button>
+        <button id="mPrev" class="btn small light" type="button">Nước Trước</button>
+        <button id="mNext" class="btn small light" type="button">Nước Sau</button>
+        <button id="mLast" class="btn small light" type="button">Cuối Cùng</button>
+      </div>
+
+      <!-- Phân hệ Đánh giá 5 sao & Bình luận ván đấu -->
+      <div class="comments-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h4 style="color: #fef08a; font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+            ĐÁNH GIÁ & BÌNH LUẬN TRẬN ĐẤU
+          </h4>
+          <div id="commentSummaryScore" style="font-family: 'Orbitron', monospace; font-size: 0.95rem; color: #d4af37; font-weight: 700;">
+            0.0 / 5 (0 ĐÁNH GIÁ)
+          </div>
+        </div>
+
+        <!-- Form gửi đánh giá -->
+        <form id="commentForm" style="background: rgba(15,23,42,0.6); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 16px;">
+          <div style="font-size: 0.82rem; color: var(--text-muted); font-weight: 700; margin-bottom: 6px;">CHỌN ĐIỂM CHẤT LƯỢNG:</div>
+          <div class="star-rating-select" id="starRatingSelector">
+            <button type="button" class="star-point" data-star="1">1</button>
+            <button type="button" class="star-point" data-star="2">2</button>
+            <button type="button" class="star-point" data-star="3">3</button>
+            <button type="button" class="star-point" data-star="4">4</button>
+            <button type="button" class="star-point selected" data-star="5">5</button>
+          </div>
+          <input type="hidden" id="ratingInput" value="5">
+
+          <div style="margin-bottom: 12px;">
+            <textarea id="commentContentInput" rows="2" placeholder="Nhận xét nước đi hoặc chiến thuật trận này..." style="width: 100%; border-radius: 8px; margin-bottom: 0;"></textarea>
+          </div>
+          <div style="text-align: right;">
+            <button id="btnSubmitComment" class="btn small" type="submit">GỬI BÌNH LUẬN</button>
+          </div>
+        </form>
+
+        <!-- Danh sách bình luận -->
+        <div id="commentList" class="comment-list">
+          <div style="text-align: center; color: var(--text-muted); padding: 14px;">Đang tải bình luận...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/history.js"></script>
+</body>
+</html>

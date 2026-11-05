@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Hồ Sơ Kỳ Thủ - Grandmaster Arena</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="nav"></header>
+
+  <main class="container">
+    <div class="profile-grid">
+      <!-- Cot 1: Thong tin ca nhan -->
+      <section class="card">
+        <h2>THÔNG TIN TÀI KHOẢN</h2>
+        <div id="alertInfo" class="alert"></div>
+
+        <div class="profile-avatar-wrap">
+          <div id="pAvatar" class="profile-avatar-large">U</div>
+          <div class="profile-meta">
+            <h3 id="pDisplayName">Họ và tên</h3>
+            <p>@<span id="pUser"></span> &nbsp;•&nbsp; <span id="pRole"></span></p>
+          </div>
+        </div>
+
+        <form id="formProfile" novalidate>
+          <div class="form-group">
+            <label for="pName">Họ và tên hiển thị</label>
+            <input id="pName" type="text" maxlength="100" placeholder="Nhập họ và tên...">
+            <div id="errPName" class="field-error"></div>
+          </div>
+          <button id="btnSaveName" class="btn" type="submit" style="width: 100%;">Lưu Thay Đổi Họ Tên</button>
+        </form>
+      </section>
+
+      <!-- Cot 2: Doi mat khau -->
+      <section class="card">
+        <h2>BẢO MẬT & ĐỔI MẬT KHẨU</h2>
+        <div id="alertPass" class="alert"></div>
+
+        <form id="formPassword" novalidate>
+          <div class="form-group">
+            <label for="oldPass">Mật khẩu hiện tại</label>
+            <input id="oldPass" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu hiện tại...">
+            <div id="errOldPass" class="field-error"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="newPass">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+            <input id="newPass" type="password" autocomplete="new-password" placeholder="Nhập mật khẩu mới...">
+            <div id="errNewPass" class="field-error"></div>
+          </div>
+
+          <button id="btnPass" class="btn warning" type="submit" style="width: 100%;">Cập Nhật Mật Khẩu Mới</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/profile.js"></script>
+</body>
+</html>
