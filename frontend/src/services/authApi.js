@@ -10,6 +10,9 @@ export const authApi = {
   logout: () =>
     axiosClient.post('/auth/logout'),
 
+  loginGoogle: (idToken) =>
+    axiosClient.post('/auth/google', { idToken }),
+
   getMe: () =>
     axiosClient.get('/auth/me'),
 };

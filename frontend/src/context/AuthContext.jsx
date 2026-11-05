@@ -60,6 +60,12 @@ export function AuthProvider({ children }) {
     return res;
   };
 
+  const loginWithGoogle = async (idToken) => {
+    const res = await authApi.loginGoogle(idToken);
+    await refreshAuthAndEquipped();
+    return res;
+  };
+
   const register = async (username, password, fullName) => {
     return await authApi.register(username, password, fullName);
   };
@@ -89,6 +95,7 @@ export function AuthProvider({ children }) {
         equipped,
         loading,
         login,
+        loginWithGoogle,
         register,
         logout,
         refreshAuthAndEquipped,

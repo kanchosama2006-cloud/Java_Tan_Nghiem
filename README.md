@@ -104,7 +104,40 @@ Bạn có thể tự đăng ký một tài khoản mới trực tiếp trên gia
 
 ---
 
-## 6. CÁC TÍNH NĂNG NỔI BẬT TRONG GAME
+## 6. CẤU HÌNH ĐĂNG NHẬP GOOGLE OAUTH 2.0 (TÙY CHỌN)
+
+Dự án hỗ trợ đăng nhập chuẩn Google Identity Services (GIS). Để kích hoạt:
+
+1. **Lấy Google Client ID**:
+   - Truy cập [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+   - Tạo một dự án mới, vào **OAuth consent screen** chọn loại External, điền tên ứng dụng.
+   - Vào **Credentials -> Create Credentials -> OAuth client ID** (Application type: *Web application*).
+   - Thêm vào **Authorized JavaScript origins**:
+     - `http://localhost:5173`
+     - `http://localhost:8080`
+   - Bấm Save và copy **Client ID** (dạng `xxxx.apps.googleusercontent.com`).
+
+2. **Cấu hình trên Frontend**:
+   - Trong thư mục `frontend/`, tạo file `.env` (copy từ `.env.example`):
+     ```env
+     VITE_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+     ```
+
+3. **Cấu hình trên Backend**:
+   - Bạn có thể đặt biến môi trường hệ thống `GOOGLE_CLIENT_ID`:
+     ```bash
+     # Windows PowerShell:
+     $env:GOOGLE_CLIENT_ID="xxxx.apps.googleusercontent.com"
+     ```
+   - Hoặc điền trực tiếp vào `src/main/resources/application.properties`:
+     ```properties
+     caro.oauth.google.client-id=xxxx.apps.googleusercontent.com
+     ```
+   *(Nếu chưa cấu hình, người dùng vẫn sử dụng bình thường tính năng Đăng nhập & Đăng ký bằng tài khoản/mật khẩu nội bộ).*
+
+---
+
+## 7. CÁC TÍNH NĂNG NỔI BẬT TRONG GAME
 
 1. **Chế Độ Chơi Đa Dạng**:
    - **Đấu với AI**: 3 cấp độ (Tân Thủ, Chiến Binh, Đại Kiện Tướng).

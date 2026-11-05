@@ -1,10 +1,12 @@
 package com.example.caro.controller;
 
+import com.example.caro.dto.GoogleLoginRequest;
 import com.example.caro.dto.LoginRequest;
 import com.example.caro.dto.RegisterRequest;
 import com.example.caro.dto.UserResponse;
 import com.example.caro.entity.User;
 import com.example.caro.service.AuthService;
+import com.example.caro.service.GoogleAuthService;
 import com.example.caro.service.UserService;
 import com.example.caro.util.SessionUser;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,10 +23,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final GoogleAuthService googleAuthService;
 
-    public AuthController(AuthService authService, UserService userService) {
+    public AuthController(AuthService authService, UserService userService, GoogleAuthService googleAuthService) {
         this.authService = authService;
         this.userService = userService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/register")
@@ -40,6 +44,21 @@ public class AuthController {
         HttpSession old = http.getSession(false);
         if (old != null) {
             old.invalidate();                       // huy phien cu, tranh session fixation
+        }
+        HttpSession session = http.getSession(true);
+        session.setAttribute(SessionUser.USER_ID, user.getId());
+        session.setAttribute(SessionUser.ROLE, user.getRole().getName());
+        return UserResponse.from(user);
+    }
+
+    @PostMapping("/google")
+    public UserResponse loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest http) {
+        GoogleAuthService.GoogleUserInfo userInfo = googleAuthService.verifyToken(request.idToken());
+        User user = authService.authenticateGoogle(userInfo);
+
+        HttpSession old = http.getSession(false);
+        if (old != null) {
+            old.invalidate();
         }
         HttpSession session = http.getSession(true);
         session.setAttribute(SessionUser.USER_ID, user.getId());
