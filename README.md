@@ -53,41 +53,53 @@ Dự án sử dụng cơ sở dữ liệu MySQL tự động tạo bảng:
 
 ---
 
-## 4. HƯỚNG DẪN KHỞI CHẠY HỆ THỐNG
+## 4. HƯỚNG DẪN KHỞI CHẠY HỆ THỐNG (BẮT BUỘC CHẠY SONG SONG CẢ 2 PHẦN)
 
-Dự án gồm 2 phần: **Backend (Máy chủ Java Spring Boot)** và **Frontend (Giao diện React Vite)**. Bạn chỉ cần mở 2 cửa sổ dòng lệnh riêng biệt:
+> [!IMPORTANT]
+> **LƯU Ý QUAN TRỌNG:** Để game hoạt động, bạn **bắt buộc phải chạy song song cả 2 phần cùng lúc**:
+> 1. Vừa bấm **Run** file Java `CaroApplication.java` (Backend xử lý dữ liệu và phòng đấu).
+> 2. Vừa chạy lệnh **`npm run dev`** (Frontend hiển thị giao diện web).
+> Thiếu 1 trong 2 thì web sẽ không đăng nhập hoặc không hiển thị được.
 
-### Bước 1: Khởi động Backend (Spring Boot Server)
-Mở cửa sổ dòng lệnh thứ nhất tại thư mục dự án `caro`:
+---
 
-- **Nếu dùng IntelliJ IDEA hoặc Eclipse / VS Code**: Mở thư mục dự án và bấm nút **Run** tại file `CaroApplication.java`.
-- **Hoặc nếu dùng lệnh Maven**:
+### Bước 1: Khởi động Backend (Máy chủ Java Spring Boot)
+
+Bạn có thể chọn 1 trong 3 cách sau:
+- **Cách 1 (Khuyên dùng trong IntelliJ IDEA / Eclipse / VS Code):**
+  - Mở dự án trong IDE.
+  - Tìm đến file: `src/main/java/com/example/caro/CaroApplication.java`
+  - Nhấp chuột phải chọn **Run 'CaroApplication'** (hoặc bấm nút hình tam giác xanh ▶).
+- **Cách 2 (Bấm chuột nhanh trên Windows):**
+  - Nhấp đúp chuột trực tiếp vào file **`run.bat`** trong thư mục `caro`.
+- **Cách 3 (Dùng lệnh nếu máy có Maven):**
   ```bash
   mvn spring-boot:run
   ```
-Khi màn hình hiện dòng chữ `Started CaroApplication in ... seconds` và cổng `8080`, máy chủ backend đã sẵn sàng!
+👉 Khi thấy dòng chữ `Started CaroApplication in ... seconds` và cổng `8080` là Backend đã chạy thành công! **(Giữ nguyên cửa sổ này, không được tắt)**.
 
 ---
 
 ### Bước 2: Khởi động Frontend (Giao diện Người dùng)
-Mở cửa sổ dòng lệnh thứ hai tại thư mục dự án `caro`:
+
+Mở một cửa sổ dòng lệnh (Terminal / PowerShell) thứ 2 tại thư mục dự án `caro`:
 
 ```bash
 # 1. Đi vào thư mục giao diện
 cd frontend
 
-# 2. Cài đặt các thư viện phụ thuộc (chỉ cần chạy lần đầu tiên)
+# 2. Cài đặt thư viện (chỉ cần chạy lần đầu tiên)
 npm install
 
-# 3. Khởi động giao diện
+# 3. Khởi động giao diện web
 npm run dev -- --host
 ```
 
-Màn hình sẽ hiển thị đường link truy cập, ví dụ:
+Màn hình sẽ hiển thị đường link truy cập:
 - Trên chính máy tính này: [http://localhost:5173](http://localhost:5173)
-- Trên điện thoại hoặc máy tính thứ 2 (cùng Wi-Fi): `http://192.168.x.x:5173`
+- Trên điện thoại hoặc máy tính thứ 2 (cùng mạng Wi-Fi): `http://192.168.x.x:5173`
 
-Mở trình duyệt lên và trải nghiệm ngay!
+Mở trình duyệt lên và vào chơi ngay!
 
 ---
 
