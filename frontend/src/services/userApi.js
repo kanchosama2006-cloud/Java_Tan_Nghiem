@@ -6,11 +6,19 @@ export const achievementApi = {
 
 export const leaderboardApi = {
   getLeaderboard: () => axiosClient.get('/leaderboard'),
+  getTop: () => axiosClient.get('/leaderboard'),
 };
 
 export const commentApi = {
   getComments: (gameId) => axiosClient.get(`/games/${gameId}/comments`),
-  addComment: (gameId, data) => axiosClient.post(`/games/${gameId}/comments`, data),
+  getByGame: (gameId) => axiosClient.get(`/games/${gameId}/comments`),
+  addComment: (dataOrGameId, data) => {
+    if (typeof dataOrGameId === 'object') {
+      const { gameId, ...body } = dataOrGameId;
+      return axiosClient.post(`/games/${gameId}/comments`, body);
+    }
+    return axiosClient.post(`/games/${dataOrGameId}/comments`, data);
+  },
 };
 
 export const userApi = {

@@ -17,6 +17,8 @@ public record OnlineRoomResponse(
         String winner,
         List<MoveDto> moves,
         Long savedGameId,
+        boolean readyX,
+        boolean readyO,
         LocalDateTime createdAt
 ) {
     public static OnlineRoomResponse from(OnlineRoom room) {
@@ -33,6 +35,8 @@ public record OnlineRoomResponse(
                 room.getWinner(),
                 List.copyOf(room.getMoves()),
                 room.getSavedGameId(),
+                room.isReadyX(),
+                room.isReadyO(),
                 room.getCreatedAt()
         );
     }

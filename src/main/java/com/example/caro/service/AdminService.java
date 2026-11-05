@@ -133,13 +133,16 @@ public class AdminService {
         if (shopItemRepository.existsByCode(req.code().trim().toUpperCase())) {
             throw new BadRequestException("Mã vật phẩm '" + req.code() + "' đã tồn tại");
         }
+        String gradient = (req.previewGradient() != null && !req.previewGradient().isBlank())
+                ? req.previewGradient().trim()
+                : "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)";
         ShopItem item = new ShopItem(
                 req.code().trim().toUpperCase(),
                 req.name().trim(),
                 req.category().trim().toUpperCase(),
                 req.price(),
                 req.cssClass().trim(),
-                req.previewGradient().trim(),
+                gradient,
                 req.description() != null ? req.description().trim() : ""
         );
         item.setActive(req.active() == null || req.active());
@@ -155,7 +158,9 @@ public class AdminService {
         item.setCategory(req.category().trim().toUpperCase());
         item.setPrice(req.price());
         item.setCssClass(req.cssClass().trim());
-        item.setPreviewGradient(req.previewGradient().trim());
+        if (req.previewGradient() != null && !req.previewGradient().isBlank()) {
+            item.setPreviewGradient(req.previewGradient().trim());
+        }
         item.setDescription(req.description() != null ? req.description().trim() : "");
         if (req.active() != null) {
             item.setActive(req.active());

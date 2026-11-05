@@ -28,6 +28,11 @@ public class OnlineRoomController {
         return onlineRoomService.getWaitingRooms();
     }
 
+    @GetMapping("/waiting")
+    public List<OnlineRoomResponse> getWaitingRoomsAlias() {
+        return onlineRoomService.getWaitingRooms();
+    }
+
     /** Tạo phòng mới */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -53,5 +58,19 @@ public class OnlineRoomController {
                                        @Valid @RequestBody MoveDto move,
                                        HttpSession session) {
         return onlineRoomService.makeOnlineMove(roomCode, SessionUser.id(session), move);
+    }
+
+    /** Khiêu chiến / Sẵn sàng vào trận / Đấu lại ván mới */
+    @PostMapping("/{roomCode}/ready")
+    public OnlineRoomResponse setReady(@PathVariable("roomCode") String roomCode,
+                                       @RequestParam(value = "ready", defaultValue = "true") boolean ready,
+                                       HttpSession session) {
+        return onlineRoomService.toggleReady(roomCode, SessionUser.id(session), ready);
+    }
+
+    /** Rời phòng (Xử thua nếu đang trong trận) */
+    @PostMapping("/{roomCode}/leave")
+    public OnlineRoomResponse leaveRoom(@PathVariable("roomCode") String roomCode, HttpSession session) {
+        return onlineRoomService.leaveRoom(roomCode, SessionUser.id(session));
     }
 }

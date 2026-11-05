@@ -16,17 +16,48 @@ export function GamePage() {
   const [playerXName, setPlayerXName] = useState(user?.fullName || 'Kỳ thủ X');
   const [playerOName, setPlayerOName] = useState('Kỳ thủ O');
 
-  // Game Board State
-  const [board, setBoard] = useState(Array.from({ length: 3 }, () => Array(3).fill('')));
-  const [turn, setTurn] = useState('X');
+  // Core Game Moves State (MUST be declared before derived useMemo)
   const [moves, setMoves] = useState([]);
-  const [queueX, setQueueX] = useState([]);
-  const [queueO, setQueueO] = useState([]);
+
+  // Calculate derived board matrix & queues directly from moves
+  const { board, queueX, queueO } = React.useMemo(() => {
+    const size = boardSize || 3;
+    const isInfinite = size === 3 && ruleMode === 'infinite';
+    const matrix = Array.from({ length: size }, () => Array(size).fill(''));
+    const qX = [];
+    const qO = [];
+
+    (moves || []).forEach((m) => {
+      const r = m.row != null ? m.row : m.rowIdx;
+      const c = m.col != null ? m.col : m.colIdx;
+      const sym = m.symbol;
+      if (r >= 0 && r < size && c >= 0 && c < size) {
+        if (isInfinite) {
+          const q = sym === 'X' ? qX : qO;
+          if (q.length >= 3) {
+            const oldest = q.shift();
+            matrix[oldest[0]][oldest[1]] = '';
+          }
+          matrix[r][c] = sym;
+          q.push([r, c]);
+        } else {
+          matrix[r][c] = sym;
+        }
+      }
+    });
+
+    return { board: matrix, queueX: qX, queueO: qO };
+  }, [moves, boardSize, ruleMode]);
+
+  const [turn, setTurn] = useState('X');
   const [isGameOver, setIsGameOver] = useState(false);
   const [winningLine, setWinningLine] = useState(null);
   const [statusMessage, setStatusMessage] = useState('Lượt đi: Kỳ thủ X (X)');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [stats, setStats] = useState({ gamesPlayed: 0, xWins: 0, oWins: 0, draws: 0 });
+
+  // Game End Modal State (Result Banner)
+  const [endGameModal, setEndGameModal] = useState(null); // { type: 'WIN' | 'DEFEAT' | 'DRAW', title: '', subtitle: '', winnerSymbol: '' }
 
   // Online Multiplayer State
   const [waitingRooms, setWaitingRooms] = useState([]);
@@ -35,6 +66,10 @@ export function GamePage() {
   const [currentOnlineRoom, setCurrentOnlineRoom] = useState(null);
   const [myOnlineSymbol, setMyOnlineSymbol] = useState(null);
   const pollingIntervalRef = useRef(null);
+  const previousGuestRef = useRef(null); // Giám sát khi có player 2 vào phòng
+  const [countdown, setCountdown] = useState(null); // Đếm ngược 3s bắt đầu trận
+  const countdownIntervalRef = useRef(null);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false); // Modal xác nhận rời phòng bị xử thua
 
   // Load My Stats
   const loadStats = async () => {
@@ -81,14 +116,12 @@ export function GamePage() {
 
   // Initialize new local game
   const resetLocalGame = (size = boardSize, mode = ruleMode) => {
-    setBoard(Array.from({ length: size }, () => Array(size).fill('')));
     setTurn('X');
     setMoves([]);
-    setQueueX([]);
-    setQueueO([]);
     setIsGameOver(false);
     setWinningLine(null);
     setIsAiThinking(false);
+    setEndGameModal(null);
     setStatusMessage(`Lượt đi: ${playerXName} (X)`);
   };
 
@@ -163,30 +196,51 @@ export function GamePage() {
     return null;
   };
 
-  // Local Move Execution
-  const executeLocalMove = (r, c, currentSymbol) => {
-    let nextBoard = board.map((row) => [...row]);
-    let nextQueueX = [...queueX];
-    let nextQueueO = [...queueO];
-    const isInfinite = boardSize === 3 && ruleMode === 'infinite';
-
-    if (isInfinite) {
-      const activeQueue = currentSymbol === 'X' ? nextQueueX : nextQueueO;
-      if (activeQueue.length >= 3) {
-        const oldest = activeQueue.shift();
-        nextBoard[oldest[0]][oldest[1]] = '';
+  // Rebuild a board matrix from a moves list to check win/draw accurately
+  const buildBoardFromMoves = (movesList, size, isInfinite) => {
+    const matrix = Array.from({ length: size }, () => Array(size).fill(''));
+    const qX = [];
+    const qO = [];
+    movesList.forEach((m) => {
+      const r = m.row != null ? m.row : m.rowIdx;
+      const c = m.col != null ? m.col : m.colIdx;
+      const sym = m.symbol;
+      if (r >= 0 && r < size && c >= 0 && c < size) {
+        if (isInfinite) {
+          const q = sym === 'X' ? qX : qO;
+          if (q.length >= 3) {
+            const oldest = q.shift();
+            matrix[oldest[0]][oldest[1]] = '';
+          }
+          matrix[r][c] = sym;
+          q.push([r, c]);
+        } else {
+          matrix[r][c] = sym;
+        }
       }
-      nextBoard[r][c] = currentSymbol;
-      activeQueue.push([r, c]);
-    } else {
-      nextBoard[r][c] = currentSymbol;
-    }
+    });
+    return matrix;
+  };
 
-    const nextMoves = [...moves, { row: r, col: c, symbol: currentSymbol }];
-    setBoard(nextBoard);
+  // Local Move Execution
+  const executeLocalMove = (r, c, currentSymbol, currentMovesList) => {
+    const isInfinite = boardSize === 3 && ruleMode === 'infinite';
+    const baseMoves = currentMovesList || moves;
+
+    const newMove = {
+      rowIdx: r,
+      colIdx: c,
+      row: r,
+      col: c,
+      symbol: currentSymbol,
+      moveOrder: baseMoves.length + 1,
+    };
+
+    const nextMoves = [...baseMoves, newMove];
     setMoves(nextMoves);
-    setQueueX(nextQueueX);
-    setQueueO(nextQueueO);
+
+    // Compute updated board to check win
+    const nextBoard = buildBoardFromMoves(nextMoves, boardSize, isInfinite);
 
     // Check Win
     const winning = checkWinCondition(nextBoard, r, c, currentSymbol, boardSize);
@@ -197,22 +251,59 @@ export function GamePage() {
       setStatusMessage(`${winnerName} (${currentSymbol}) CHIẾN THẮNG!`);
       showToast(`Chúc mừng ${winnerName} (${currentSymbol}) đã chiến thắng!`, 'success');
       finishLocalGame(currentSymbol, nextMoves);
+
+      // Determine Win/Defeat modal
+      const isBotMatch = opponentType.startsWith('BOT');
+      if (isBotMatch) {
+        if (currentSymbol === 'X') {
+          setEndGameModal({
+            type: 'WIN',
+            title: 'KHẢI HOÀN ĐẠI THẮNG!',
+            subtitle: `Bạn đã xuất sắc đánh bại ${playerOName}!`,
+            winnerSymbol: 'X',
+          });
+        } else {
+          setEndGameModal({
+            type: 'DEFEAT',
+            title: 'KỲ THỦ BẠI TRẬN!',
+            subtitle: `${playerOName} đã chiến thắng ván cờ này. Hãy phục thù ở ván tiếp theo!`,
+            winnerSymbol: 'O',
+          });
+        }
+      } else {
+        setEndGameModal({
+          type: 'WIN',
+          title: `${winnerName.toUpperCase()} CHIẾN THẮNG!`,
+          subtitle: `Chiến thắng thuyết phục bằng chuỗi quân ${currentSymbol}!`,
+          winnerSymbol: currentSymbol,
+        });
+      }
+
+      return { nextMoves, isOver: true };
     } else if (
       nextMoves.length >= boardSize * boardSize &&
-      !(boardSize === 3 && ruleMode === 'infinite')
+      !isInfinite
     ) {
       setIsGameOver(true);
       setStatusMessage('Trận đấu Hòa!');
       showToast('Trận đấu kết thúc với kết quả Hòa!', 'info');
       finishLocalGame('DRAW', nextMoves);
+
+      setEndGameModal({
+        type: 'DRAW',
+        title: 'BẤT PHÂN THẮNG BẠI!',
+        subtitle: 'Cả hai kỳ thủ đều thủ thế hoàn hảo, kết thúc với kết quả Hòa.',
+        winnerSymbol: null,
+      });
+
+      return { nextMoves, isOver: true };
     } else {
       const nextTurn = currentSymbol === 'X' ? 'O' : 'X';
       setTurn(nextTurn);
       const nextName = nextTurn === 'X' ? playerXName : playerOName;
       setStatusMessage(`Lượt đi: ${nextName} (${nextTurn})`);
-      return { nextBoard, nextMoves, nextTurn };
+      return { nextMoves, nextTurn, isOver: false };
     }
-    return null;
   };
 
   // Save completed game & rewards
@@ -232,7 +323,7 @@ export function GamePage() {
   };
 
   // Trigger Bot Move
-  const triggerBotTurn = async (currentMoves) => {
+  const triggerBotTurn = async (movesAfterHuman) => {
     setIsAiThinking(true);
     setStatusMessage(`Máy (${playerOName}) đang phân tích nước đi...`);
 
@@ -245,13 +336,17 @@ export function GamePage() {
         boardSize,
         mode: boardSize === 3 && ruleMode === 'infinite' ? 'INFINITE' : 'CLASSIC',
         difficulty,
-        moves: currentMoves,
+        moves: movesAfterHuman.map((m) => ({
+          row: m.row != null ? m.row : m.rowIdx,
+          col: m.col != null ? m.col : m.colIdx,
+          symbol: m.symbol,
+        })),
       });
 
-      if (botRes.row >= 0 && botRes.col >= 0) {
+      if (botRes && botRes.row >= 0 && botRes.col >= 0) {
         setTimeout(() => {
           setIsAiThinking(false);
-          executeLocalMove(botRes.row, botRes.col, 'O');
+          executeLocalMove(botRes.row, botRes.col, 'O', movesAfterHuman);
         }, 220);
       } else {
         setIsAiThinking(false);
@@ -282,8 +377,8 @@ export function GamePage() {
     const isBotMatch = opponentType.startsWith('BOT');
     if (isBotMatch && turn !== 'X') return;
 
-    const res = executeLocalMove(r, c, turn);
-    if (res && isBotMatch && res.nextTurn === 'O') {
+    const res = executeLocalMove(r, c, turn, moves);
+    if (res && !res.isOver && isBotMatch && res.nextTurn === 'O') {
       triggerBotTurn(res.nextMoves);
     }
   };
@@ -326,19 +421,64 @@ export function GamePage() {
       }
     });
 
-    setBoard(nextBoard);
     setMoves(room.moves || []);
-    setQueueX(qX);
-    setQueueO(qO);
+
+    // Thông báo khi có Player 2 vào phòng
+    if (room.guestUserId && !previousGuestRef.current) {
+      previousGuestRef.current = room.guestUserId;
+      showToast(`Kỳ thủ ${room.playerO || 'Người chơi 2'} đã tham gia phòng!`, 'success');
+    } else if (!room.guestUserId) {
+      previousGuestRef.current = null;
+    }
+
+    // Kiểm tra khi cả hai bên đều Sẵn Sàng / Đồng ý khiêu chiến -> Tự động kích hoạt đếm ngược 3 giây
+    if (room.readyX && room.readyO && !countdownTriggeredRef.current) {
+      countdownTriggeredRef.current = true;
+      startCountdownSequence();
+    } else if (!room.readyX || !room.readyO) {
+      countdownTriggeredRef.current = false;
+    }
+
+    // Nếu phòng đang PLAYING và chưa kết thúc, đảm bảo đóng modal kết quả cũ và tiếp tục polling
+    if (room.status === 'PLAYING') {
+      setIsGameOver(false);
+      setEndGameModal(null);
+      if (!pollingIntervalRef.current && room.roomCode) {
+        startOnlinePolling(room.roomCode);
+      }
+    }
 
     if (room.status === 'FINISHED') {
       setIsGameOver(true);
-      stopOnlinePolling();
+      // Giữ polling chạy nhẹ để nhận tín hiệu Tái Đấu Ván Mới từ đối thủ!
       if (room.winner === 'DRAW') {
         setStatusMessage('Trận đấu Hòa!');
+        setEndGameModal({
+          type: 'DRAW',
+          title: 'BẤT PHÂN THẮNG BẠI!',
+          subtitle: 'Hai kỳ thủ đã cầm hòa sau những nước cờ cân não!',
+          winnerSymbol: null,
+        });
       } else {
         const wName = room.winner === 'X' ? room.playerX : room.playerO;
         setStatusMessage(`${wName} (${room.winner}) CHIẾN THẮNG!`);
+
+        const isMeWinner = room.winner === myOnlineSymbol;
+        if (isMeWinner) {
+          setEndGameModal({
+            type: 'WIN',
+            title: 'KHẢI HOÀN ĐẠI THẮNG!',
+            subtitle: `Chúc mừng bạn đã giành chiến thắng trước ${room.winner === 'X' ? room.playerO : room.playerX}!`,
+            winnerSymbol: room.winner,
+          });
+        } else {
+          setEndGameModal({
+            type: 'DEFEAT',
+            title: 'KỲ THỦ BẠI TRẬN!',
+            subtitle: `${wName} đã chiến thắng ván cờ trực tuyến này. Hãy tái đấu để phục thù!`,
+            winnerSymbol: room.winner,
+          });
+        }
       }
       loadStats();
       refreshAuthAndEquipped();
@@ -412,10 +552,73 @@ export function GamePage() {
     }
   };
 
+  const countdownTriggeredRef = useRef(false);
+
+  const startCountdownSequence = () => {
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    let sec = 3;
+    setCountdown(sec);
+
+    countdownIntervalRef.current = setInterval(() => {
+      sec -= 1;
+      if (sec > 0) {
+        setCountdown(sec);
+      } else if (sec === 0) {
+        setCountdown('CHIẾN!');
+      } else {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+        setCountdown(null);
+        showToast('Trận đấu chính thức bắt đầu!', 'success');
+      }
+    }, 1000);
+  };
+
+  const handleStartOnlineMatch = async () => {
+    if (!currentOnlineRoom) return;
+    try {
+      const updated = await roomApi.setReady(currentOnlineRoom.roomCode, true);
+      syncOnlineRoomState(updated);
+      showToast('Đã gửi lời khiêu chiến! Đang chờ đối thủ đồng ý...', 'info');
+    } catch (err) {
+      showToast(err.message || 'Lỗi gửi yêu cầu vào trận', 'error');
+    }
+  };
+
+  const handleAcceptChallenge = async () => {
+    if (!currentOnlineRoom) return;
+    try {
+      const updated = await roomApi.setReady(currentOnlineRoom.roomCode, true);
+      syncOnlineRoomState(updated);
+      showToast('Đã chấp nhận khiêu chiến!', 'success');
+    } catch (err) {
+      showToast(err.message || 'Lỗi chấp nhận khiêu chiến', 'error');
+    }
+  };
+
   const handleLeaveRoom = () => {
+    // Nếu phòng đang ở trạng thái PLAYING (đang trong trận đấu), mở hộp thoại cảnh báo xử thua!
+    if (currentOnlineRoom && currentOnlineRoom.status === 'PLAYING') {
+      setConfirmLeaveOpen(true);
+    } else {
+      executeLeaveRoom();
+    }
+  };
+
+  const executeLeaveRoom = async () => {
+    try {
+      if (currentOnlineRoom) {
+        await roomApi.leaveRoom(currentOnlineRoom.roomCode);
+      }
+    } catch (e) {}
+
     stopOnlinePolling();
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    setCountdown(null);
     setCurrentOnlineRoom(null);
     setMyOnlineSymbol(null);
+    previousGuestRef.current = null;
+    setConfirmLeaveOpen(false);
     resetLocalGame();
     fetchWaitingRooms();
     showToast('Đã rời khỏi phòng Online', 'info');
@@ -645,6 +848,81 @@ export function GamePage() {
                         : 'Kết thúc'}
                     </span>
                   </div>
+
+                  {/* THÔNG BÁO KHIÊU CHIẾN & NÚT SẴN SÀNG HAI BÊN */}
+                  {currentOnlineRoom && moves.length === 0 && (
+                    <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {/* Trạng thái sẵn sàng hiển thị cho cả 2 bên */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        <span>
+                          {currentOnlineRoom.playerX}: {currentOnlineRoom.readyX ? <b style={{ color: '#10b981' }}>ĐÃ SẴN SÀNG</b> : <span style={{ color: '#f59e0b' }}>Chưa sẵn sàng</span>}
+                        </span>
+                        <span>
+                          {currentOnlineRoom.playerO || 'Khách'}: {currentOnlineRoom.readyO ? <b style={{ color: '#10b981' }}>ĐÃ SẴN SÀNG</b> : <span style={{ color: '#f59e0b' }}>Chưa sẵn sàng</span>}
+                        </span>
+                      </div>
+
+                      {/* Nếu đối phương đã bấm sẵn sàng mà mình chưa bấm -> Hiện banner khiêu chiến */}
+                      {((myOnlineSymbol === 'X' && currentOnlineRoom.readyO && !currentOnlineRoom.readyX) ||
+                        (myOnlineSymbol === 'O' && currentOnlineRoom.readyX && !currentOnlineRoom.readyO)) && (
+                        <div
+                          style={{
+                            padding: '10px',
+                            background: 'rgba(212, 175, 55, 0.15)',
+                            border: '1px solid var(--gold-primary)',
+                            borderRadius: '8px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--gold-primary)', marginBottom: '6px' }}>
+                            ĐỐI THỦ ĐANG KHIÊU CHIẾN BẠN!
+                          </div>
+                          <button
+                            type="button"
+                            className="btn"
+                            style={{
+                              width: '100%',
+                              padding: '8px 16px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              color: '#fff',
+                            }}
+                            onClick={handleAcceptChallenge}
+                          >
+                            CHẤP NHẬN KHIÊU CHIẾN
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Nút gửi khiêu chiến / Sẵn sàng nếu mình chưa bấm */}
+                      {((myOnlineSymbol === 'X' && !currentOnlineRoom.readyX && !currentOnlineRoom.readyO) ||
+                        (myOnlineSymbol === 'O' && !currentOnlineRoom.readyO && !currentOnlineRoom.readyX)) && (
+                        <button
+                          className="btn"
+                          type="button"
+                          style={{
+                            width: '100%',
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            color: '#fff',
+                            fontWeight: 700,
+                            fontSize: '0.88rem',
+                          }}
+                          onClick={handleStartOnlineMatch}
+                        >
+                          GỬI LỜI KHIÊU CHIẾN
+                        </button>
+                      )}
+
+                      {/* Nếu mình đã sẵn sàng mà đối thủ chưa bấm */}
+                      {((myOnlineSymbol === 'X' && currentOnlineRoom.readyX && !currentOnlineRoom.readyO) ||
+                        (myOnlineSymbol === 'O' && currentOnlineRoom.readyO && !currentOnlineRoom.readyX)) && (
+                        <div style={{ fontSize: '0.82rem', color: '#38bdf8', textAlign: 'center', padding: '6px' }}>
+                          Đã gửi khiêu chiến! Đang chờ đối thủ chấp nhận...
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -707,10 +985,18 @@ export function GamePage() {
               className="btn"
               type="button"
               style={{ width: '100%' }}
-              onClick={() => resetLocalGame()}
-              disabled={opponentType === 'ONLINE' && !!currentOnlineRoom}
+              onClick={() => {
+                if (opponentType === 'ONLINE' && currentOnlineRoom) {
+                  handleStartOnlineMatch();
+                } else {
+                  resetLocalGame();
+                }
+              }}
+              disabled={opponentType === 'ONLINE' && countdown !== null}
             >
-              Bắt Đầu Ván Mới
+              {opponentType === 'ONLINE' && currentOnlineRoom
+                ? (countdown !== null ? `ĐANG KHỞI TRANH (${countdown})...` : 'BẮT ĐẦU VÀO TRẬN')
+                : 'Bắt Đầu Ván Mới'}
             </button>
           </div>
         </div>
@@ -837,9 +1123,327 @@ export function GamePage() {
           disabled={isGameOver || isAiThinking || isOnlineLocked}
           boardThemeClass={equipped?.boardThemeClass}
           pieceSkinClass={equipped?.pieceSkinClass}
+          boardThemeGradient={equipped?.boardThemeGradient}
+          pieceSkinGradient={equipped?.pieceSkinGradient}
           isLockedTurn={isOnlineLocked}
           isMyTurn={opponentType === 'ONLINE' && !isOnlineLocked && !isGameOver}
         />
+
+        {/* ĐẾM NGƯỢC 3S KHỞI TRANH TRẬN ĐẤU ONLINE */}
+        {countdown !== null && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(5, 7, 15, 0.9)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: typeof countdown === 'number' ? '6rem' : '4rem',
+                fontWeight: 900,
+                color: typeof countdown === 'number' ? 'var(--gold-primary, #FFD700)' : '#10B981',
+                textShadow: '0 0 30px rgba(255, 215, 0, 0.6)',
+                animation: 'pulse 0.8s infinite alternate',
+              }}
+            >
+              {countdown}
+            </div>
+            <div
+              style={{
+                fontFamily: 'Orbitron, sans-serif',
+                fontSize: '1.2rem',
+                letterSpacing: '2px',
+                color: 'var(--text-main, #E2E8F0)',
+                marginTop: '16px',
+                textTransform: 'uppercase',
+              }}
+            >
+              {typeof countdown === 'number' ? 'Chuẩn bị bước vào đấu trường...' : 'Trận đấu chính thức bắt đầu!'}
+            </div>
+          </div>
+        )}
+
+        {/* MODAL / BANNER CHÚC MỪNG CHIẾN THẮNG HOẶC CHIA BUỒN BẠI TRẬN */}
+        {endGameModal && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(5, 7, 15, 0.85)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              animation: 'fadeIn 0.3s ease',
+            }}
+            onClick={() => setEndGameModal(null)}
+          >
+            <div
+              className="modal-content"
+              style={{
+                width: '90%',
+                maxWidth: '460px',
+                textAlign: 'center',
+                padding: '36px 28px',
+                borderRadius: '16px',
+                background:
+                  endGameModal.type === 'WIN'
+                    ? 'linear-gradient(145deg, rgba(20, 24, 38, 0.98), rgba(12, 16, 26, 0.98))'
+                    : endGameModal.type === 'DEFEAT'
+                    ? 'linear-gradient(145deg, rgba(35, 15, 20, 0.98), rgba(18, 10, 14, 0.98))'
+                    : 'linear-gradient(145deg, rgba(25, 25, 32, 0.98), rgba(15, 15, 20, 0.98))',
+                border:
+                  endGameModal.type === 'WIN'
+                    ? '1px solid rgba(212, 175, 55, 0.5)'
+                    : endGameModal.type === 'DEFEAT'
+                    ? '1px solid rgba(244, 63, 94, 0.4)'
+                    : '1px solid rgba(148, 163, 184, 0.3)',
+                boxShadow:
+                  endGameModal.type === 'WIN'
+                    ? '0 0 40px rgba(212, 175, 55, 0.25), inset 0 0 20px rgba(212, 175, 55, 0.1)'
+                    : endGameModal.type === 'DEFEAT'
+                    ? '0 0 40px rgba(244, 63, 94, 0.2), inset 0 0 20px rgba(244, 63, 94, 0.08)'
+                    : '0 0 30px rgba(148, 163, 184, 0.15)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Grandmaster Diamond Badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '12px',
+                  transform: 'rotate(45deg)',
+                  margin: '0 auto 24px',
+                  background:
+                    endGameModal.type === 'WIN'
+                      ? 'linear-gradient(135deg, #FFD700 0%, #B8860B 100%)'
+                      : endGameModal.type === 'DEFEAT'
+                      ? 'linear-gradient(135deg, #F43F5E 0%, #9F1239 100%)'
+                      : 'linear-gradient(135deg, #94A3B8 0%, #475569 100%)',
+                  boxShadow:
+                    endGameModal.type === 'WIN'
+                      ? '0 0 25px rgba(255, 215, 0, 0.6)'
+                      : endGameModal.type === 'DEFEAT'
+                      ? '0 0 20px rgba(244, 63, 94, 0.5)'
+                      : '0 0 15px rgba(148, 163, 184, 0.4)',
+                }}
+              >
+                <span
+                  style={{
+                    transform: 'rotate(-45deg)',
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '1.4rem',
+                    fontWeight: 900,
+                    color: '#0D0E12',
+                  }}
+                >
+                  {endGameModal.winnerSymbol || '—'}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h2
+                style={{
+                  fontFamily: 'Orbitron, sans-serif',
+                  fontSize: '1.45rem',
+                  letterSpacing: '2px',
+                  margin: '0 0 10px',
+                  color:
+                    endGameModal.type === 'WIN'
+                      ? 'var(--gold-primary, #FFD700)'
+                      : endGameModal.type === 'DEFEAT'
+                      ? '#F43F5E'
+                      : '#E2E8F0',
+                  textShadow:
+                    endGameModal.type === 'WIN'
+                      ? '0 0 15px rgba(255, 215, 0, 0.4)'
+                      : endGameModal.type === 'DEFEAT'
+                      ? '0 0 15px rgba(244, 63, 94, 0.4)'
+                      : 'none',
+                }}
+              >
+                {endGameModal.title}
+              </h2>
+
+              {/* Subtitle */}
+              <p
+                style={{
+                  fontSize: '0.92rem',
+                  lineHeight: 1.5,
+                  color: 'var(--text-muted, #94a3b8)',
+                  margin: '0 0 28px',
+                }}
+              >
+                {endGameModal.subtitle}
+              </p>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: '10px 24px',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    background:
+                      endGameModal.type === 'WIN'
+                        ? 'linear-gradient(135deg, #d4af37, #b8860b)'
+                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    color: '#0d0e12',
+                  }}
+                  onClick={async () => {
+                    setEndGameModal(null);
+                    if (opponentType === 'ONLINE' && currentOnlineRoom) {
+                      try {
+                        const updated = await roomApi.setReady(currentOnlineRoom.roomCode, true);
+                        syncOnlineRoomState(updated);
+                        startOnlinePolling(currentOnlineRoom.roomCode);
+                        showToast('Đã gửi lời mời tái đấu ván mới! Đang chờ đối thủ đồng ý...', 'info');
+                      } catch (e) {
+                        showToast('Không thể gửi yêu cầu tái đấu', 'error');
+                      }
+                    } else {
+                      resetLocalGame();
+                    }
+                  }}
+                >
+                  {opponentType === 'ONLINE' ? 'TÁI ĐẤU VÁN MỚI' : 'Ván Mới'}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ padding: '10px 20px', fontSize: '0.9rem' }}
+                  onClick={() => setEndGameModal(null)}
+                >
+                  Xem Bàn Cờ
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* MODAL XÁC NHẬN RỜI PHÒNG KHI ĐANG THI ĐẤU (XỬ THUA) */}
+        {confirmLeaveOpen && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(5, 7, 15, 0.85)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10001,
+            }}
+            onClick={() => setConfirmLeaveOpen(false)}
+          >
+            <div
+              className="modal-content"
+              style={{
+                width: '90%',
+                maxWidth: '440px',
+                textAlign: 'center',
+                padding: '30px 24px',
+                borderRadius: '16px',
+                background: 'linear-gradient(145deg, rgba(30, 15, 20, 0.98), rgba(18, 10, 14, 0.98))',
+                border: '1px solid rgba(244, 63, 94, 0.5)',
+                boxShadow: '0 0 40px rgba(244, 63, 94, 0.25)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '12px',
+                  transform: 'rotate(45deg)',
+                  margin: '0 auto 20px',
+                  background: 'linear-gradient(135deg, #F43F5E 0%, #9F1239 100%)',
+                  boxShadow: '0 0 20px rgba(244, 63, 94, 0.6)',
+                }}
+              >
+                <span
+                  style={{
+                    transform: 'rotate(-45deg)',
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '1.2rem',
+                    fontWeight: 900,
+                    color: '#fff',
+                  }}
+                >
+                  !
+                </span>
+              </div>
+
+              <h3
+                style={{
+                  fontFamily: 'Orbitron, sans-serif',
+                  fontSize: '1.25rem',
+                  letterSpacing: '1px',
+                  color: '#F43F5E',
+                  margin: '0 0 12px',
+                }}
+              >
+                CẢNH BÁO BỎ CUỘC
+              </h3>
+
+              <p
+                style={{
+                  fontSize: '0.9rem',
+                  lineHeight: 1.5,
+                  color: 'var(--text-muted, #94a3b8)',
+                  margin: '0 0 24px',
+                }}
+              >
+                Trận đấu đang diễn ra! Nếu bạn rời phòng bây giờ, bạn sẽ bị <b style={{ color: '#F43F5E' }}>XỬ THUA NGAY LẬP TỨC</b> và đối thủ sẽ được tính là chiến thắng. Bạn có chắc chắn muốn rời phòng?
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  style={{ padding: '8px 20px', fontSize: '0.88rem' }}
+                  onClick={() => setConfirmLeaveOpen(false)}
+                >
+                  Ở Lại Thi Đấu
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    padding: '8px 22px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                    color: '#fff',
+                  }}
+                  onClick={executeLeaveRoom}
+                >
+                  Chấp Nhận Xử Thua & Rời
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

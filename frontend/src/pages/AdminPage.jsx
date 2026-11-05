@@ -65,7 +65,8 @@ export default function AdminPage() {
       setDashLoading(true);
       setDashError(null);
       const res = await adminApi.getOverview();
-      setDashboardData(res.data);
+      const data = res?.data || res;
+      setDashboardData(data);
     } catch (err) {
       setDashError(err.message || 'Không thể tải bảng điều khiển Admin.');
     } finally {
@@ -151,7 +152,8 @@ export default function AdminPage() {
     try {
       setShopLoading(true);
       const res = await adminApi.getShopItems();
-      setShopItems(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setShopItems(list);
     } catch (err) {
       showToast(err.message || 'Lỗi tải danh mục vật phẩm.', 'error');
     } finally {
@@ -159,14 +161,62 @@ export default function AdminPage() {
     }
   };
 
+  // Cấu hình danh mục và các màu / theme mẫu để chọn nhanh 1 cú click
+  const PRESET_STYLES = {
+    BOARD_THEME: [
+      { name: 'Đá Núi Lửa (Obsidian)', css: 'board-theme-obsidian', code: 'BOARD_OBSIDIAN', gradient: 'radial-gradient(circle, #1e293b 0%, #0f172a 100%)' },
+      { name: 'Gỗ Hoàng Đàn (Wood)', css: 'board-theme-wood', code: 'BOARD_WOOD', gradient: 'linear-gradient(135deg, #854d0e 0%, #3f2a14 100%)' },
+      { name: 'Ngọc Bích (Jade)', css: 'board-theme-jade', code: 'BOARD_JADE', gradient: 'radial-gradient(circle, #065f46 0%, #022c22 100%)' },
+    ],
+    PIECE_SKIN: [
+      { name: 'Bạch Thạch (Trắng/Đen)', css: 'piece-skin-stone', code: 'SKIN_STONE', gradient: 'linear-gradient(135deg, #f8fafc 0%, #64748b 100%)' },
+      { name: 'Hổ Phách (Vàng Kim)', css: 'piece-skin-amber', code: 'SKIN_AMBER', gradient: 'radial-gradient(circle, #f59e0b 0%, #78350f 100%)' },
+      { name: 'Huyết Lân (Đỏ Ruby)', css: 'piece-skin-crimson', code: 'SKIN_CRIMSON', gradient: 'radial-gradient(circle, #f43f5e 0%, #881337 100%)' },
+    ],
+    AVATAR_FRAME: [
+      { name: 'Bạch Kim (Platinum)', css: 'frame-platinum', code: 'FRAME_PLATINUM', gradient: 'linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%)' },
+      { name: 'Hoàng Gia (Imperial Gold)', css: 'frame-imperial', code: 'FRAME_IMPERIAL', gradient: 'linear-gradient(135deg, #ffd700 0%, #b8860b 100%)' },
+      { name: 'Hư Không (Cosmic Violet)', css: 'frame-cosmic', code: 'FRAME_COSMIC', gradient: 'linear-gradient(135deg, #818cf8 0%, #312e81 100%)' },
+    ],
+  };
+
+  // Custom Palette Generator State
+  const [color1, setColor1] = useState('#1e293b');
+  const [color2, setColor2] = useState('#0f172a');
+  const [gradientAngle, setGradientAngle] = useState(135);
+  const [useCustomPalette, setUseCustomPalette] = useState(false);
+
+  const applyCustomPalette = (c1, c2, angle) => {
+    const newGradient = `linear-gradient(${angle}deg, ${c1} 0%, ${c2} 100%)`;
+    setItemForm((prev) => ({
+      ...prev,
+      previewGradient: newGradient,
+    }));
+  };
+
+  const handleSelectPreset = (preset) => {
+    setUseCustomPalette(false);
+    setItemForm((prev) => ({
+      ...prev,
+      cssClass: preset.css,
+      name: prev.name || preset.name,
+      code: prev.code || preset.code,
+      previewGradient: preset.gradient || prev.previewGradient,
+    }));
+  };
   const openCreateShopItem = () => {
     setEditingItem(null);
+    setColor1('#1e293b');
+    setColor2('#0f172a');
+    setGradientAngle(135);
+    setUseCustomPalette(false);
     setItemForm({
-      code: '',
+      code: 'ITEM_' + Math.floor(1000 + Math.random() * 9000),
       name: '',
       category: 'BOARD_THEME',
-      price: 100,
-      cssClass: '',
+      price: 150,
+      cssClass: 'board-theme-custom',
+      previewGradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
       description: '',
       active: true,
     });
@@ -175,12 +225,14 @@ export default function AdminPage() {
 
   const openEditShopItem = (item) => {
     setEditingItem(item);
+    setUseCustomPalette(true);
     setItemForm({
       code: item.code,
       name: item.name,
       category: item.category,
       price: item.price,
       cssClass: item.cssClass,
+      previewGradient: item.previewGradient || 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
       description: item.description || '',
       active: item.active !== false,
     });
@@ -230,7 +282,8 @@ export default function AdminPage() {
     try {
       setUsersLoading(true);
       const res = await adminApi.getUsers();
-      setUsers(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setUsers(list);
     } catch (err) {
       showToast(err.message || 'Lỗi tải danh sách người chơi.', 'error');
     } finally {
@@ -263,7 +316,8 @@ export default function AdminPage() {
     try {
       setCommentsLoading(true);
       const res = await adminApi.getComments();
-      setComments(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setComments(list);
     } catch (err) {
       showToast(err.message || 'Lỗi tải danh sách bình luận.', 'error');
     } finally {
@@ -569,23 +623,86 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT SHOP ITEM */}
       {shopModalOpen && (
         <div className="modal-overlay" onClick={() => setShopModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
-            <h3 style={{ margin: '0 0 16px', fontFamily: 'Orbitron, sans-serif', color: 'var(--gold-primary)' }}>
-              {editingItem ? 'CHỈNH SỬA VẬT PHẨM' : 'THÊM VẬT PHẨM MỚI'}
-            </h3>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '560px',
+              border: '1px solid rgba(212, 175, 55, 0.4)',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(212, 175, 55, 0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  transform: 'rotate(45deg)',
+                  background: 'linear-gradient(135deg, #FFD700 0%, #B8860B 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 15px rgba(255, 215, 0, 0.4)',
+                }}
+              >
+                <span
+                  style={{
+                    transform: 'rotate(-45deg)',
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontWeight: 900,
+                    fontSize: '1rem',
+                    color: '#0d0e12',
+                  }}
+                >
+                  ✦
+                </span>
+              </div>
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '1.25rem',
+                    letterSpacing: '1px',
+                    color: 'var(--gold-primary, #FFD700)',
+                  }}
+                >
+                  {editingItem ? 'CHỈNH SỬA VẬT PHẨM' : 'THÊM VẬT PHẨM MỚI'}
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Cấu hình hiển thị và hiệu ứng CSS trong Cửa Hàng
+                </span>
+              </div>
+            </div>
 
-            <form onSubmit={handleSaveShopItem} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="form-group">
-                <label className="form-label">Mã Code (Định danh duy nhất)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={itemForm.code}
-                  onChange={(e) => setItemForm({ ...itemForm, code: e.target.value })}
-                  placeholder="VD: BOARD_OBSIDIAN"
-                  disabled={Boolean(editingItem)}
-                  required
-                />
+            <form onSubmit={handleSaveShopItem} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Mã Code (Định danh)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={itemForm.code}
+                    onChange={(e) => setItemForm({ ...itemForm, code: e.target.value })}
+                    placeholder="VD: BOARD_OBSIDIAN"
+                    disabled={Boolean(editingItem)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Giá Bán (Xu)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={itemForm.price}
+                    onChange={(e) => setItemForm({ ...itemForm, price: parseInt(e.target.value, 10) || 0 })}
+                    min="0"
+                    placeholder="VD: 150"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -595,65 +712,314 @@ export default function AdminPage() {
                   className="form-control"
                   value={itemForm.name}
                   onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  placeholder="VD: Mặt Bàn Đá Núi Lửa"
+                  placeholder="VD: Mặt Bàn Cờ Hắc Thạch"
                   required
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Danh Mục</label>
-                <select
-                  className="form-control"
-                  value={itemForm.category}
-                  onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
-                >
-                  <option value="BOARD_THEME">Mặt Bàn Cờ (BOARD_THEME)</option>
-                  <option value="PIECE_SKIN">Kiểu Quân Cờ (PIECE_SKIN)</option>
-                  <option value="AVATAR_FRAME">Khung Viền Avatar (AVATAR_FRAME)</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Danh Mục</label>
+                  <select
+                    className="form-control"
+                    value={itemForm.category}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      const defaultPreset = PRESET_STYLES[newCat]?.[0];
+                      setItemForm({
+                        ...itemForm,
+                        category: newCat,
+                        cssClass: defaultPreset ? defaultPreset.css : itemForm.cssClass,
+                        previewGradient: defaultPreset?.gradient || itemForm.previewGradient,
+                      });
+                    }}
+                  >
+                    <option value="BOARD_THEME">Mặt Bàn Cờ</option>
+                    <option value="PIECE_SKIN">Kiểu Quân Cờ</option>
+                    <option value="AVATAR_FRAME">Khung Avatar</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">CSS Class Kích Hoạt</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={itemForm.cssClass}
+                    onChange={(e) => setItemForm({ ...itemForm, cssClass: e.target.value })}
+                    placeholder="VD: board-theme-obsidian"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* BỘ CHỌN MẪU MÀU / THEME CÓ SẴN (PRESETS) */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gold-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    ✦ Mẫu Màu Thiết Kế Sẵn:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setUseCustomPalette(!useCustomPalette)}
+                    className="btn small ghost"
+                    style={{ fontSize: '0.75rem', padding: '3px 8px', borderColor: useCustomPalette ? 'var(--gold-primary)' : 'rgba(255,255,255,0.2)' }}
+                  >
+                    {useCustomPalette ? 'Đang dùng bảng màu tùy chỉnh' : '+ Tự pha màu kéo thả'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {(PRESET_STYLES[itemForm.category] || []).map((preset) => (
+                    <button
+                      key={preset.css}
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className={`btn small ${!useCustomPalette && itemForm.cssClass === preset.css ? 'active' : 'ghost'}`}
+                      style={{
+                        fontSize: '0.78rem',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: !useCustomPalette && itemForm.cssClass === preset.css ? '1px solid var(--gold-primary)' : '1px solid rgba(255,255,255,0.15)',
+                        background: !useCustomPalette && itemForm.cssClass === preset.css ? 'rgba(212, 175, 55, 0.2)' : 'rgba(255,255,255,0.03)',
+                        color: !useCustomPalette && itemForm.cssClass === preset.css ? 'var(--gold-primary)' : 'var(--text-main)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: preset.gradient,
+                          display: 'inline-block',
+                        }}
+                      />
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* BẢNG KÉO THẢ PHA MÀU (COLOR PICKER & GRADIENT SLIDER) */}
+              <div style={{ background: 'rgba(24, 30, 48, 0.85)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(212, 175, 55, 0.35)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--gold-primary)', letterSpacing: '0.5px' }}>
+                    ✦ BẢNG KÉO MÀU & PHA GRADIENT (LIVE PALETTE)
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Góc: {gradientAngle}°</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '14px', alignItems: 'center' }}>
+                  {/* Color 1 */}
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Màu Khởi Đầu</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="color"
+                        value={color1}
+                        onChange={(e) => {
+                          setColor1(e.target.value);
+                          setUseCustomPalette(true);
+                          applyCustomPalette(e.target.value, color2, gradientAngle);
+                        }}
+                        style={{ width: '42px', height: '36px', padding: 0, border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{color1}</span>
+                    </div>
+                  </div>
+
+                  {/* Color 2 */}
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Màu Kết Thúc</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="color"
+                        value={color2}
+                        onChange={(e) => {
+                          setColor2(e.target.value);
+                          setUseCustomPalette(true);
+                          applyCustomPalette(color1, e.target.value, gradientAngle);
+                        }}
+                        style={{ width: '42px', height: '36px', padding: 0, border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{color2}</span>
+                    </div>
+                  </div>
+
+                  {/* Angle slider */}
+                  <div>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Góc Xoay Dải Màu ({gradientAngle}°)</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      step="5"
+                      value={gradientAngle}
+                      onChange={(e) => {
+                        const a = parseInt(e.target.value, 10);
+                        setGradientAngle(a);
+                        setUseCustomPalette(true);
+                        applyCustomPalette(color1, color2, a);
+                      }}
+                      style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--gold-primary)' }}
+                    />
+                  </div>
+                </div>
+
+                {/* KHUNG XEM TRƯỚC SỐNG ĐỘNG (INTERACTIVE ARENA PREVIEW) */}
+                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>XEM TRƯỚC TRỰC QUAN KHI LÊN SÀN ĐẤU:</span>
+                    <span style={{ color: 'var(--gold-primary)' }}>{itemForm.category}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80px', background: 'rgba(5, 7, 15, 0.6)', borderRadius: '8px', padding: '12px' }}>
+                    {itemForm.category === 'BOARD_THEME' && (
+                      <div
+                        style={{
+                          background: itemForm.previewGradient,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(3, 26px)',
+                          gap: '4px',
+                        }}
+                      >
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '4px',
+                              background: 'rgba(255,255,255,0.12)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              fontWeight: 900,
+                              color: idx === 4 ? '#fbbf24' : idx === 2 ? '#60a5fa' : 'transparent',
+                            }}
+                          >
+                            {idx === 4 ? 'X' : idx === 2 ? 'O' : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {itemForm.category === 'PIECE_SKIN' && (
+                      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '8px',
+                            background: itemForm.previewGradient,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.4rem',
+                            fontWeight: 900,
+                            color: '#ffffff',
+                            boxShadow: '0 0 15px rgba(255,255,255,0.3)',
+                          }}
+                        >
+                          X
+                        </div>
+                        <div
+                          style={{
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '8px',
+                            background: itemForm.previewGradient,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.4rem',
+                            fontWeight: 900,
+                            color: '#ffffff',
+                            boxShadow: '0 0 15px rgba(255,255,255,0.3)',
+                          }}
+                        >
+                          O
+                        </div>
+                      </div>
+                    )}
+
+                    {itemForm.category === 'AVATAR_FRAME' && (
+                      <div
+                        style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '50%',
+                          background: itemForm.previewGradient,
+                          padding: '3px',
+                          boxShadow: '0 0 15px rgba(212, 175, 55, 0.4)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '50%',
+                            background: '#0d0e12',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            color: 'var(--gold-primary)',
+                          }}
+                        >
+                          K
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Giá Bán (Xu)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={itemForm.price}
-                  onChange={(e) => setItemForm({ ...itemForm, price: parseInt(e.target.value, 10) || 0 })}
-                  min="0"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">CSS Class Kích Hoạt</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={itemForm.cssClass}
-                  onChange={(e) => setItemForm({ ...itemForm, cssClass: e.target.value })}
-                  placeholder="VD: board-theme-obsidian"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Mô Tả</label>
+                <label className="form-label">Mô Tả Vật Phẩm</label>
                 <textarea
                   className="form-control"
                   value={itemForm.description}
                   onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                  rows="2"
-                  placeholder="Mô tả vẻ đẹp của vật phẩm..."
+                  rows="3"
+                  placeholder="Mô tả chất liệu, nguồn gốc và vẻ đẹp của vật phẩm..."
                 ></textarea>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setShopModalOpen(false)} className="btn btn-secondary">
-                  HỦY
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShopModalOpen(false)}
+                  className="btn ghost"
+                  style={{ padding: '10px 22px', fontSize: '0.9rem' }}
+                >
+                  HỦY BỎ
                 </button>
-                <button type="submit" disabled={shopSaving} className="btn btn-primary">
-                  {shopSaving ? 'ĐANG LƯU...' : 'LƯU VẬT PHẨM'}
+                <button
+                  type="submit"
+                  disabled={shopSaving}
+                  className="btn"
+                  style={{
+                    padding: '10px 26px',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #FFD700 0%, #B8860B 100%)',
+                    color: '#0d0e12',
+                    boxShadow: '0 0 15px rgba(255, 215, 0, 0.4)',
+                  }}
+                >
+                  {shopSaving ? 'ĐANG LƯU...' : editingItem ? 'CẬP NHẬT' : 'THÊM VẬT PHẨM'}
                 </button>
               </div>
             </form>

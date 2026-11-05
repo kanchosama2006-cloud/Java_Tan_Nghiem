@@ -24,7 +24,6 @@ public record ShopItemRequest(
         @NotBlank(message = "CSS class không được để trống")
         String cssClass,
 
-        @NotBlank(message = "Mã gradient preview không được để trống")
         String previewGradient,
 
         String description,

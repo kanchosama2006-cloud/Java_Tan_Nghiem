@@ -20,6 +20,8 @@ public class OnlineRoom {
     private String winner;            // null, "X", "O", "DRAW"
     private List<MoveDto> moves;      // Danh sách các nước đi đã đánh
     private Long savedGameId;         // ID ván đấu sau khi lưu vào MySQL
+    private boolean readyX;           // Trạng thái sẵn sàng của X
+    private boolean readyO;           // Trạng thái sẵn sàng của O
     private LocalDateTime createdAt;  // Thời điểm tạo phòng
     private LocalDateTime lastActivityAt; // Thời điểm hoạt động cuối
 
@@ -27,6 +29,8 @@ public class OnlineRoom {
         this.moves = new ArrayList<>();
         this.status = "WAITING";
         this.currentTurn = 'X';
+        this.readyX = false;
+        this.readyO = false;
         this.createdAt = LocalDateTime.now();
         this.lastActivityAt = LocalDateTime.now();
     }
@@ -134,6 +138,22 @@ public class OnlineRoom {
 
     public void setSavedGameId(Long savedGameId) {
         this.savedGameId = savedGameId;
+    }
+
+    public boolean isReadyX() {
+        return readyX;
+    }
+
+    public void setReadyX(boolean readyX) {
+        this.readyX = readyX;
+    }
+
+    public boolean isReadyO() {
+        return readyO;
+    }
+
+    public void setReadyO(boolean readyO) {
+        this.readyO = readyO;
     }
 
     public LocalDateTime getCreatedAt() {

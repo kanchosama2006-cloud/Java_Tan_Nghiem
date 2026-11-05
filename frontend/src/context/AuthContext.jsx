@@ -10,6 +10,9 @@ export function AuthProvider({ children }) {
     boardThemeClass: '',
     pieceSkinClass: '',
     avatarFrameClass: '',
+    boardThemeGradient: '',
+    pieceSkinGradient: '',
+    avatarFrameGradient: '',
   });
   const [loading, setLoading] = useState(true);
 
@@ -23,6 +26,9 @@ export function AuthProvider({ children }) {
           boardThemeClass: eq.boardThemeClass || '',
           pieceSkinClass: eq.pieceSkinClass || '',
           avatarFrameClass: eq.avatarFrameClass || '',
+          boardThemeGradient: eq.boardThemeGradient || '',
+          pieceSkinGradient: eq.pieceSkinGradient || '',
+          avatarFrameGradient: eq.avatarFrameGradient || '',
         });
         if (eq.coins !== undefined && eq.coins !== null) {
           setUser((prev) => (prev ? { ...prev, coins: eq.coins } : prev));

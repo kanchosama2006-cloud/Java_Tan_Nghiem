@@ -42,8 +42,9 @@ public class OnlineRoomService {
         String roomCode = generateRoomCode();
         int size = (req.boardSize() != null && (req.boardSize() == 5 || req.boardSize() == 10)) ? req.boardSize() : 3;
         String mode = (size == 3 && "INFINITE".equalsIgnoreCase(req.gameMode())) ? "INFINITE" : "CLASSIC";
+        String hostName = user.fullName() != null && !user.fullName().isBlank() ? user.fullName() : user.username();
 
-        OnlineRoom room = new OnlineRoom(roomCode, userId, user.fullName(), size, mode);
+        OnlineRoom room = new OnlineRoom(roomCode, userId, hostName, size, mode);
         rooms.put(roomCode, room);
 
         return OnlineRoomResponse.from(room);
@@ -73,8 +74,16 @@ public class OnlineRoomService {
             throw new BadRequestException("Phòng này đã kết thúc trận đấu");
         }
 
-        // Nếu là chủ phòng vào lại thì vẫn cho phép
+        // Nếu là chủ phòng (hoặc cùng 1 tài khoản test thử)
         if (room.getHostUserId().equals(userId)) {
+            // Nếu phòng chưa có khách, cho phép chủ phòng tự test (vai trò O tự động)
+            if (room.getGuestUserId() == null) {
+                UserResponse hostUser = userService.getById(userId);
+                room.setGuestUserId(userId);
+                room.setPlayerO((hostUser.fullName() != null && !hostUser.fullName().isBlank() ? hostUser.fullName() : hostUser.username()) + " (Kỳ thủ 2)");
+                room.setStatus("PLAYING");
+                room.setLastActivityAt(LocalDateTime.now());
+            }
             return OnlineRoomResponse.from(room);
         }
 
@@ -90,7 +99,7 @@ public class OnlineRoomService {
 
         UserResponse guestUser = userService.getById(userId);
         room.setGuestUserId(userId);
-        room.setPlayerO(guestUser.fullName());
+        room.setPlayerO(guestUser.fullName() != null && !guestUser.fullName().isBlank() ? guestUser.fullName() : guestUser.username());
         room.setStatus("PLAYING");
         room.setLastActivityAt(LocalDateTime.now());
 
@@ -156,6 +165,63 @@ public class OnlineRoomService {
             room.setCurrentTurn((userSymbol == 'X') ? 'O' : 'X');
         }
 
+        return OnlineRoomResponse.from(room);
+    }
+
+    /** Người chơi ấn Sẵn Sàng / Khiêu Chiến hoặc Đấu Ván Mới */
+    public synchronized OnlineRoomResponse toggleReady(String roomCode, Long userId, boolean ready) {
+        OnlineRoom room = findRoom(roomCode);
+
+        // Nếu phòng vừa kết thúc và muốn đấu ván mới
+        if ("FINISHED".equals(room.getStatus())) {
+            room.setStatus("PLAYING");
+            room.setWinner(null);
+            room.getMoves().clear();
+            room.setCurrentTurn('X');
+            room.setSavedGameId(null);
+            room.setReadyX(false);
+            room.setReadyO(false);
+        }
+
+        if (userId.equals(room.getHostUserId())) {
+            room.setReadyX(ready);
+        } else if (userId.equals(room.getGuestUserId())) {
+            room.setReadyO(ready);
+        }
+
+        // Nếu cả hai đã sẵn sàng
+        if (room.isReadyX() && room.isReadyO()) {
+            room.setStatus("PLAYING");
+        }
+
+        room.setLastActivityAt(LocalDateTime.now());
+        return OnlineRoomResponse.from(room);
+    }
+
+    /** Xử lý khi người chơi chủ động Rời phòng -> Xử thua (Surrender/Abandon) */
+    public synchronized OnlineRoomResponse leaveRoom(String roomCode, Long userId) {
+        OnlineRoom room = findRoom(roomCode);
+
+        // Nếu đang trong trận đấu ("PLAYING") mà 1 bên thoát -> Xử thua người thoát, đối phương thắng!
+        if ("PLAYING".equals(room.getStatus())) {
+            if (userId.equals(room.getHostUserId())) {
+                // Chủ phòng (X) thoát -> O thắng
+                room.setStatus("FINISHED");
+                room.setWinner("O");
+            } else if (userId.equals(room.getGuestUserId())) {
+                // Khách (O) thoát -> X thắng
+                room.setStatus("FINISHED");
+                room.setWinner("X");
+            }
+            saveOnlineGameToDatabase(room);
+        } else if ("WAITING".equals(room.getStatus())) {
+            // Nếu chưa bắt đầu mà chủ phòng thoát -> Hủy phòng
+            if (userId.equals(room.getHostUserId())) {
+                rooms.remove(roomCode);
+            }
+        }
+
+        room.setLastActivityAt(LocalDateTime.now());
         return OnlineRoomResponse.from(room);
     }
 

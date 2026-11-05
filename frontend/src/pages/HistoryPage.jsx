@@ -42,7 +42,8 @@ export default function HistoryPage() {
       setLoading(true);
       setError(null);
       const res = await gameApi.getMyGames();
-      setGames(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setGames(list);
     } catch (err) {
       setError(err.message || 'Không thể tải lịch sử đấu.');
     } finally {
@@ -65,17 +66,19 @@ export default function HistoryPage() {
 
     const activeMoves = moves.slice(0, currentStep);
     activeMoves.forEach((m) => {
-      const { row, col, player } = m;
-      if (row >= 0 && row < size && col >= 0 && col < size) {
+      const r = m.row != null ? m.row : m.rowIdx;
+      const c = m.col != null ? m.col : m.colIdx;
+      const player = m.symbol || m.player || 'X';
+      if (r >= 0 && r < size && c >= 0 && c < size) {
         if (isInfinite) {
           const q = player === 'X' ? xQueue : oQueue;
           if (q.length >= maxMoves) {
             const oldest = q.shift();
             board[oldest.row][oldest.col] = '';
           }
-          q.push({ row, col });
+          q.push({ row: r, col: c });
         }
-        board[row][col] = player;
+        board[r][c] = player;
       }
     });
 
@@ -100,25 +103,20 @@ export default function HistoryPage() {
   }, [isPlayingAuto, currentStep, moves.length, selectedGame]);
 
   const openReplay = async (game) => {
-    // Parse moves list if needed
-    let parsedMoves = [];
     try {
-      if (Array.isArray(game.movesList)) {
-        parsedMoves = game.movesList;
-      } else if (typeof game.movesJson === 'string') {
-        parsedMoves = JSON.parse(game.movesJson);
-      }
-    } catch (e) {
-      parsedMoves = [];
+      // Call detail API to get moves
+      const fullGame = await gameApi.getGame(game.id);
+      const moves = fullGame.moves || [];
+      const gameObj = { ...fullGame, movesList: moves };
+      setSelectedGame(gameObj);
+      setCurrentStep(moves.length);
+      setIsPlayingAuto(false);
+
+      // Load comments
+      loadComments(game.id);
+    } catch (err) {
+      showToast('Không thể tải chi tiết ván cờ: ' + err.message, 'error');
     }
-
-    const gameObj = { ...game, movesList: parsedMoves };
-    setSelectedGame(gameObj);
-    setCurrentStep(parsedMoves.length);
-    setIsPlayingAuto(false);
-
-    // Load comments
-    loadComments(game.id);
   };
 
   const closeReplay = () => {
@@ -132,7 +130,9 @@ export default function HistoryPage() {
     try {
       setCommentsLoading(true);
       const res = await commentApi.getByGame(gameId);
-      setComments(res.data || []);
+      // res is GameCommentSummaryResponse: { averageRating, totalComments, comments }
+      const list = res.comments || res.data || (Array.isArray(res) ? res : []);
+      setComments(list);
     } catch (err) {
       console.error(err);
     } finally {

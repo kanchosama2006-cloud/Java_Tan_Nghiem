@@ -10,6 +10,8 @@ export function CaroBoard({
   isMini = false,
   boardThemeClass = '',
   pieceSkinClass = '',
+  boardThemeGradient = '',
+  pieceSkinGradient = '',
   isLockedTurn = false,
   isMyTurn = false,
 }) {
@@ -26,6 +28,8 @@ export function CaroBoard({
   if (isLockedTurn) boardCls += ' locked-turn';
   if (isMyTurn) boardCls += ' my-turn';
 
+  const boardStyle = boardThemeGradient ? { background: boardThemeGradient } : undefined;
+
   const isWinningCell = (r, c) => {
     if (!winningLine || !Array.isArray(winningLine)) return false;
     return winningLine.some(([wr, wc]) => wr === r && wc === c);
@@ -37,7 +41,7 @@ export function CaroBoard({
   };
 
   return (
-    <div className={boardCls}>
+    <div className={boardCls} style={boardStyle}>
       {boardMatrix.map((rowArr, r) =>
         rowArr.map((cellVal, c) => {
           let cellCls = 'cell';

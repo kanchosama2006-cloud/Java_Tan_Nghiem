@@ -16,7 +16,8 @@ export default function LeaderboardPage() {
       setLoading(true);
       setError(null);
       const res = await leaderboardApi.getTop();
-      setLeaders(res.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
+      setLeaders(list);
     } catch (err) {
       setError(err.message || 'Không thể tải bảng vàng danh giá.');
     } finally {

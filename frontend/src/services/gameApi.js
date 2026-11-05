@@ -2,6 +2,7 @@ import axiosClient from './axiosClient';
 
 export const gameApi = {
   getGames: () => axiosClient.get('/games'),
+  getMyGames: () => axiosClient.get('/games'),
 
   getGame: (id) => axiosClient.get(`/games/${id}`),
 

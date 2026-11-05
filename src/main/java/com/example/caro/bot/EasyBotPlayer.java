@@ -54,6 +54,15 @@ public class EasyBotPlayer extends AbstractBotPlayer {
         List<int[]> pool = neighborMoves.isEmpty() ? available : neighborMoves;
         int[] chosen = pool.get(random.nextInt(pool.size()));
 
+        if (!state.isCellEmpty(chosen[0], chosen[1])) {
+            for (int[] fallback : available) {
+                if (state.isCellEmpty(fallback[0], fallback[1])) {
+                    chosen = fallback;
+                    break;
+                }
+            }
+        }
+
         return new BotMoveResponse(
                 chosen[0], chosen[1],
                 botName, difficultyLevel,

@@ -65,14 +65,21 @@ export function MainLayout() {
               <span className="coin-unit">XU</span>
             </NavLink>
 
-            <div className={`nav-avatar-mini ${frameClass}`} title={user?.fullName || ''}>
-              <span className="nav-avatar-char">{initial}</span>
-            </div>
+            <NavLink
+              to="/profile"
+              className="nav-avatar-mini-link"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: 'inherit' }}
+              title="Xem & Chỉnh sửa Hồ Sơ"
+            >
+              <div className={`nav-avatar-mini ${frameClass}`}>
+                <span className="nav-avatar-char">{initial}</span>
+              </div>
 
-            <span className="who">
-              <b>{user?.fullName || user?.username}</b>
-              <span className={`badge ${user?.role || ''}`}>{user?.role}</span>
-            </span>
+              <span className="who">
+                <b>{user?.fullName || user?.username}</b>
+                <span className={`badge ${user?.role || ''}`}>{user?.role}</span>
+              </span>
+            </NavLink>
 
             <button
               id="btnLogout"

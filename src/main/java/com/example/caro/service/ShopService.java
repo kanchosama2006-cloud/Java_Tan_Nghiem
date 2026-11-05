@@ -134,17 +134,29 @@ public class ShopService {
         String boardTheme = null;
         String pieceSkin = null;
         String avatarFrame = null;
+        String boardThemeGradient = null;
+        String pieceSkinGradient = null;
+        String avatarFrameGradient = null;
 
         for (UserInventory ui : equipped) {
             ShopItem item = ui.getItem();
             switch (item.getCategory()) {
-                case "BOARD_THEME" -> boardTheme = item.getCssClass();
-                case "PIECE_SKIN" -> pieceSkin = item.getCssClass();
-                case "AVATAR_FRAME" -> avatarFrame = item.getCssClass();
+                case "BOARD_THEME" -> {
+                    boardTheme = item.getCssClass();
+                    boardThemeGradient = item.getPreviewGradient();
+                }
+                case "PIECE_SKIN" -> {
+                    pieceSkin = item.getCssClass();
+                    pieceSkinGradient = item.getPreviewGradient();
+                }
+                case "AVATAR_FRAME" -> {
+                    avatarFrame = item.getCssClass();
+                    avatarFrameGradient = item.getPreviewGradient();
+                }
             }
         }
 
-        return new EquippedCosmeticsResponse(boardTheme, pieceSkin, avatarFrame, user.getCoins());
+        return new EquippedCosmeticsResponse(boardTheme, pieceSkin, avatarFrame, user.getCoins(), boardThemeGradient, pieceSkinGradient, avatarFrameGradient);
     }
 
     @Transactional(readOnly = true)
