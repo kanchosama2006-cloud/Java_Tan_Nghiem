@@ -622,14 +622,17 @@ export default function AdminPage() {
 
       {/* MODAL: ADD / EDIT SHOP ITEM */}
       {shopModalOpen && (
-        <div className="modal-overlay" onClick={() => setShopModalOpen(false)}>
+        <div className="modal-overlay" onClick={() => setShopModalOpen(false)} style={{ overflowY: 'auto', padding: '24px 12px' }}>
           <div
             className="modal-content"
             onClick={(e) => e.stopPropagation()}
             style={{
-              maxWidth: '560px',
+              maxWidth: '580px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               border: '1px solid rgba(212, 175, 55, 0.4)',
               boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(212, 175, 55, 0.2)',
+              padding: '24px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
